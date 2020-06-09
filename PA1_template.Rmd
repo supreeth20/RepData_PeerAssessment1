@@ -1,25 +1,92 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Reproducible Research: Peer Assessment 1
+===========
+```{r,echo=FALSE}
+library(knitr)
+opts_chunk$set(echo=TRUE,cache=TRUE)
+```
 
+## Reading and processing data
+downloading the zip file , unzipping it ,reading it using read.csv.The date column is in charcater data type casting it to date data type
+```{r}
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",destfile='activity.zip')
+unzip("activity.zip",exdir = "activity")
+act = read.csv("activity/activity.csv")
+act$date = as.Date(act$date,"%Y-%m-%d")
+head(act)
+summary(act)
+pairs(act)
+```
 
-## Loading and preprocessing the data
+## Histogram of total number of steps taken each day
+using dplyr package storing the number of total steps per day discarding the na values, using ggplot to plot the histogram of total number of steps taken each day
+```{r}
+library("ggplot2")
+library(dplyr)
+tem = act%>%group_by(date)%>%summarise(total_steps=sum(steps,na.rm = TRUE))
+ggplot(tem,aes(x=total_steps))+geom_histogram(bins=5)
+```
 
+## Mean and Median number of steps taken each day
+using summarise function in dplyr  package and finding the mean , median steps per day .
+```{r}
+tem%>%summarise(mean=mean(total_steps,na.rm=TRUE),median=median(total_steps,na.rm = TRUE))
+```
 
+Mean total steps per day is 9354.23 and the median total steps per day is 10395
 
-## What is mean total number of steps taken per day?
+## Time series plot of average number of steps taken
+Using dplyr package to group the data by interval and finding the mean total steps per interval and plotting the time series of average steps.
 
+```{r}
+temp = act%>%group_by(interval)%>%summarise(avg_steps=mean(steps,na.rm = TRUE))
+ggplot(temp,aes(x=interval,y=avg_steps))+geom_line()
+```
 
+## The 5-minute interval that, on average, contains the maximum number of steps
+```{r}
+interval_w_max_steps = arrange(temp,desc(avg_steps))$interval[1]
+interval_w_max_steps
+```
+The 5-minute interval that, on average , contains the maximum number of steps is 835
 
-## What is the average daily activity pattern?
+## Strategy for dealing with missing values
+The strategy I am going to use to deal with missing values is fill the missing values with mean values of steps per interval .
+Create a new variable to store the new dataset with no NA values.
+```{r}
+totalna = sum(is.na(act))
+totalna
+```
+There are total 2304 rows with missing values
+```{r}
+actnoNA = data.frame(act)
+for(i in temp$interval){
+    actnoNA[is.na(act$steps)&act$interval==i,"steps"]= temp[temp$interval==i,"avg_steps"]
+}
+head(actnoNA)
+```
 
+## Histogram of the total number of steps taken each day after missing values are imputed
+Creating a histogram for total no of steps taken each day using the dataframe in which missing values are filled
+```{r}
+tem = actnoNA%>%group_by(date)%>%summarise(total_steps=sum(steps,na.rm = TRUE))
+ggplot(tem,aes(x=total_steps))+geom_histogram(bins=5)
+```
+calculating the mean and median of steps per day 
+```{r}
+tem%>%summarise(mean=mean(total_steps,na.rm=TRUE),median=median(total_steps,na.rm = TRUE))
+```
 
+The mean and median vary of total steps per day after dealing with mssing values,the mean has increased and mean has become equal to median.
+## Checking differences in activity patterns between weekdays and weekends
+```{r}
+wkend = c("Saturday","Sunday")
+act = act%>%
+    mutate(wktype=ifelse(weekdays(act$date) %in% wkend,"weekend","weekday"))
+pl = act%>%group_by(wktype,interval)%>%summarise(avg_steps=mean(steps,na.rm = TRUE))
+library(lattice)
+xyplot(avg_steps ~ interval | wktype,pl, type = "l", layout = c(1, 2), 
+    xlab = "Interval", ylab = "Number of steps")
+```
 
-## Imputing missing values
+From the plot we can see that there is a difference in average steps taken per day on weekdays and weekends.
 
-
-
-## Are there differences in activity patterns between weekdays and weekends?
